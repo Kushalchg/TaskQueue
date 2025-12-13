@@ -1,98 +1,192 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import * as Network from "expo-network";
+import StatusBadge from "./_components/StatsBadge";
+import StatBox from "./_components/StatBox";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Icon from "@expo/vector-icons/MaterialCommunityIcons";
+import { ActionButton } from "./_components/ActionButton";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+type TaskStatus = "pending" | "processing" | "failed" | "completed";
 
-export default function HomeScreen() {
+interface Task {
+  id: string;
+  name: string;
+  status: TaskStatus;
+  retries: number;
+}
+
+export default function TaskDashboardScreen() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const networkState = Network.useNetworkState()
+
+
+  /* ---------------- Derived Stats ---------------- */
+  const totalTasks = tasks.length;
+  const pendingTasks = tasks.filter(t => t.status === "pending").length;
+  const failedTasks = tasks.filter(t => t.status === "failed").length;
+
+  /* ---------------- Actions ---------------- */
+  const addTask = () => {
+    const generateTaskId = () =>
+      `task_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    setTasks(prev => [
+      ...prev,
+      {
+        id: generateTaskId(),
+        name: `Task ${prev.length + 1}`,
+        status: "pending",
+        retries: 0,
+      },
+    ]);
+  };
+
+  const clearTasks = () => {
+    Alert.alert("Clear Tasks", "Remove all tasks?", [
+      { text: "Cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => setTasks([]),
+      },
+    ]);
+  };
+
+  const processTasks = async () => {
+    if (!networkState.isConnected) {
+      Alert.alert("Offline", "Connect to the internet first");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    setTasks(prev =>
+      prev.map(t =>
+        t.status === "pending" ? { ...t, status: "processing" } : t
+      )
+    );
+
+    // Simulated processing
+    setTimeout(() => {
+      setTasks(prev =>
+        prev.map(t =>
+          t.status === "processing"
+            ? Math.random() > 0.2
+              ? { ...t, status: "completed" }
+              : { ...t, status: "failed", retries: t.retries + 1 }
+            : t
+        )
+      );
+      setIsProcessing(false);
+    }, 2000);
+  };
+
+  /* ---------------- Render ---------------- */
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={styles.container}>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Status */}
+        <View style={styles.statusRow}>
+          {networkState.isConnected ?
+            <Icon name="wifi-strength-4" size={25} color={"#00aa44"} /> :
+            <Icon name="wifi-strength-alert-outline" size={25} color={"#aa0044"} />
+          }
+          <StatusBadge
+            label={isProcessing ? "Processing…" : "Idle"}
+            color={isProcessing ? "#2563eb" : "#6b7280"}
+          />
+        </View>
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <StatBox label="Total" value={totalTasks} />
+          <StatBox label="Pending" value={pendingTasks} />
+          <StatBox label="Failed" value={failedTasks} />
+        </View>
+
+
+        {/* Controls */}
+        <View style={styles.controls}>
+          <ActionButton onPress={addTask}>
+            <Icon name="plus" size={16} color="#2563eb" style={{ marginRight: 6 }} />
+            <Text style={{ color: "#2563eb" }}>Upload</Text>
+          </ActionButton>
+
+          <ActionButton onPress={processTasks}>
+            <Icon name="cog-play" size={16} color="#2563eb" style={{ marginRight: 6 }} />
+            <Text style={{ color: "#2563eb" }}>Process</Text>
+          </ActionButton>
+
+          <ActionButton onPress={clearTasks} borderColor="#dc2626">
+            <Icon name="trash-can-outline" size={16} color="#dc2626" style={{ marginRight: 6 }} />
+            <Text style={{ color: "#dc2626" }}>Clear</Text>
+          </ActionButton>
+        </View>
+
+        {/* Task List */}
+        <FlatList
+          data={tasks}
+          keyExtractor={item => item.id}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No tasks added</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.taskItem}>
+              <Text style={styles.taskName}>{item.name}</Text>
+              <Text style={styles.taskStatus}>{item.status}</Text>
+            </View>
+          )}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
+
+/* ---------------- Styles ---------------- */
+
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, padding: 16 },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    marginVertical: 12,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  statusRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginVertical: 12,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  controls: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  taskItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderColor: "#e5e7eb",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  taskName: { fontWeight: "500" },
+  taskStatus: { textTransform: "capitalize", color: "#475569" },
+
+  emptyText: {
+    textAlign: "center",
+    marginTop: 40,
+    color: "#94a3b8",
   },
 });
