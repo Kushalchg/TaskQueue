@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
-  AppStateEvent,
   AppStateStatus,
   FlatList,
   StyleSheet,
@@ -46,13 +45,13 @@ export default function TaskDashboardScreen() {
   const networkState = Network.useNetworkState();
   const appState = useRef(AppState.currentState);
 
-
   //initialize app
   const initializeApp = async () => {
     try {
       const loadedTasks = await loadTasks();
       setTasks(loadedTasks);
       await registerBackgroundTask();
+      return loadedTasks;
     } catch (error) {
       console.error("Error initializing app:", error);
     } finally {
@@ -60,46 +59,54 @@ export default function TaskDashboardScreen() {
     }
   };
 
-
   // Load tasks from AsyncStorage and register background Task if not registered alredy  on mount
   useEffect(() => {
     if (resolver) {
       resolver();
       console.log("Resolver called");
     }
+    // await initialization so that other foreground logic can rely on stored tasks
     initializeApp();
     //subscribe to the appstate change
     const appStateSubscibe = AppState.addEventListener(
-      "change", (nextAppState: AppStateStatus) => {
-        if (appState.current.match(/inactive|background/) && nextAppState === "active") {
+      "change",
+      async (nextAppState: AppStateStatus) => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === "active"
+        ) {
           // App has come to the foreground
           console.log("App has come to the foreground!");
-          initializeApp();
-          processTasks()
+          // Ensure we load the latest tasks from storage then process them
+          await initializeApp();
+          processTasks();
         }
 
         if (appState.current.match(/active/) && nextAppState === "background") {
           console.log("App has gone to the background!");
         }
         appState.current = nextAppState;
-
       }
-    )
+    );
 
     //remove listner on screen unmount
     return () => {
-      appStateSubscibe.remove()
-    }
-
+      appStateSubscibe.remove();
+    };
   }, []);
 
   // Watch network state and trigger background task if online
   useEffect(() => {
+    // If device becomes online and the app is in foreground, process immediately.
     if (networkState.isConnected) {
-      triggerBackgroundTask();
+      if (appState.current === "active") {
+        processTasks();
+      } else {
+        // If in background, trigger background-processing cycle
+        triggerBackgroundTask();
+      }
     }
   }, [networkState.isConnected]);
-
 
   const handleSaveTasks = async (newTasks: Task[]) => {
     await saveTasks(newTasks);
@@ -120,7 +127,18 @@ export default function TaskDashboardScreen() {
     const updatedTasks = [...tasks, ...newImageTasks];
     await handleSaveTasks(updatedTasks);
 
-    if (networkState.isConnected) {
+    // If online and app is active, process immediately; otherwise trigger background processing
+    try {
+      const net = await Network.getNetworkStateAsync();
+      if (net.isConnected) {
+        if (appState.current === "active") {
+          processTasks();
+        } else {
+          triggerBackgroundTask();
+        }
+      }
+    } catch (e) {
+      // fallback: trigger background task
       triggerBackgroundTask();
     }
   };
@@ -142,14 +160,27 @@ export default function TaskDashboardScreen() {
 
   /* Process Tasks (Manual backup) */
   const processTasks = async () => {
-    if (!networkState.isConnected) {
-      Alert.alert("Offline", "Connect to the internet first");
+    // Check network connectivity live to avoid stale hook values
+    try {
+      const netState = await Network.getNetworkStateAsync();
+      if (!netState.isConnected) {
+        Alert.alert("Offline", "Connect to the internet first");
+        return;
+      }
+    } catch (e) {
+      Alert.alert("Network Error", "Unable to check network status");
       return;
     }
 
-    const pendingTasksList = tasks.filter((t) => t.status != "completed");
+    // Always load latest tasks from storage to avoid using stale state
+    const storedTasks = await loadTasks();
+    const pendingTasksList = storedTasks.filter(
+      (t) => t.status !== "completed"
+    );
 
     if (pendingTasksList.length === 0) {
+      // update state with stored tasks in case they changed elsewhere
+      setTasks(storedTasks);
       Alert.alert(
         "No pending tasks",
         "All images are already backed up or failed"
@@ -159,10 +190,11 @@ export default function TaskDashboardScreen() {
 
     setIsProcessing(true);
 
-    let updatedTasks = tasks.map((t) =>
-      t.status != "completed" ? { ...t, status: "processing" as const } : t
+    let updatedTasks = storedTasks.map((t) =>
+      t.status !== "completed" ? { ...t, status: "processing" as const } : t
     );
     await handleSaveTasks(updatedTasks);
+    setTasks(updatedTasks);
 
     for (const task of pendingTasksList) {
       const success = await uploadImageToServer(task);
@@ -176,6 +208,7 @@ export default function TaskDashboardScreen() {
       );
 
       await handleSaveTasks(updatedTasks);
+      setTasks(updatedTasks);
     }
 
     setIsProcessing(false);
