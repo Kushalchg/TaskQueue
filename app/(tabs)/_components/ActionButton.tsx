@@ -1,38 +1,3 @@
-// import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-//
-// const ActionButton = ({
-//   label,
-//   onPress,
-//   danger,
-// }: {
-//   label: string;
-//   onPress: () => void;
-//   danger?: boolean;
-// }) => (
-//   <TouchableOpacity
-//     style={[
-//       styles.button,
-//       danger && { backgroundColor: "#dc2626" },
-//     ]}
-//     onPress={onPress}
-//   >
-//     <Text style={styles.buttonText}>{label}</Text>
-//   </TouchableOpacity>
-// );
-//
-// const styles = StyleSheet.create({
-//   button: {
-//     backgroundColor: "#2563eb20",
-//     paddingHorizontal: 14,
-//     paddingVertical: 10,
-//     borderWidth: 1,
-//     borderColor: "#2563eb",
-//   },
-//   buttonText: { color: "white", fontWeight: "600" },
-// });
-//
-// export default ActionButton;
-
 
 import React from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle, StyleProp, TouchableOpacityProps } from 'react-native';
@@ -44,7 +9,7 @@ interface CustomButtonProps extends TouchableOpacityProps {
   style?: StyleProp<ViewStyle>;
 };
 
-export const ActionButton = ({
+const ActionButton = ({
   children,
   borderColor = '#007AFF',
   ...restProps
@@ -78,3 +43,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 });
+
+export default ActionButton;

@@ -2,7 +2,7 @@ import React from 'react';
 
 import { Stack } from 'expo-router';
 
-export default function TabLayout() {
+export default function HomeStack() {
 
   return (
 
