@@ -1,8 +1,8 @@
+import { Task } from "@/components/tasks/types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as BackgroundTask from "expo-background-task";
 import * as Network from "expo-network";
 import * as TaskManager from "expo-task-manager";
-import { Task } from "../_components/types";
 import { uploadImageToServer } from "./uploadService";
 
 export const TASKS_STORAGE_KEY = "backup_tasks";

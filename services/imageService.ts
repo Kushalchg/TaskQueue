@@ -1,7 +1,7 @@
+import { Task } from "@/components/tasks/types";
 import { File, Paths } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { Alert } from "react-native";
-import { Task } from "../_components/types";
 
 export const pickImages = async (): Promise<Task[]> => {
   const permissionResult =

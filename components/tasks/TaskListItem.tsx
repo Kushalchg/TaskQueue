@@ -1,7 +1,6 @@
-import { View, Text, Image, StyleSheet } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { Task } from "../../app/(tabs)/_components/types";
 import { StatusIcon } from "./StatusIcon";
-import { Task } from "./types";
-
 
 type Props = {
   task: Task;
@@ -10,12 +9,7 @@ type Props = {
 export const TaskListItem = ({ task }: Props) => {
   return (
     <View style={styles.container}>
-      {task.uri && (
-        <Image
-          source={{ uri: task.uri }}
-          style={styles.image}
-        />
-      )}
+      {task.uri && <Image source={{ uri: task.uri }} style={styles.image} />}
 
       <View style={styles.info}>
         <Text style={styles.name}>{task.name}</Text>

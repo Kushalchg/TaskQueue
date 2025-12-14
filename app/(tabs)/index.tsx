@@ -1,3 +1,12 @@
+import LoadingModel from "@/components/loading-model";
+import { Task } from "@/components/tasks/types";
+import {
+  initializeBackgroundTask,
+  registerBackgroundTask,
+  triggerBackgroundTask,
+} from "@/services/backgroundTaskService";
+import { pickImages } from "@/services/imageService";
+import { clearAllTasks, loadTasks, saveTasks } from "@/services/storageService";
 import Icon from "@expo/vector-icons/MaterialCommunityIcons";
 import * as Network from "expo-network";
 import React, { useEffect, useRef, useState } from "react";
@@ -12,23 +21,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import ActionButton from "./_components/ActionButton";
-import StatBox from "./_components/StatBox";
-import { TaskListItem } from "./_components/TaskListItem";
-import { Task } from "./_components/types";
-import {
-  initializeBackgroundTask,
-  registerBackgroundTask,
-  triggerBackgroundTask,
-} from "./_services/backgroundTaskService";
-import { pickImages } from "./_services/imageService";
-import {
-  clearAllTasks,
-  loadTasks,
-  saveTasks,
-} from "./_services/storageService";
-import { uploadImageToServer } from "./_services/uploadService";
-import LoadingModel from "@/components/loading-model";
+import ActionButton from "../../components/tasks/ActionButton";
+import StatBox from "../../components/tasks/StatBox";
+import { TaskListItem } from "../../components/tasks/TaskListItem";
+import { uploadImageToServer } from "../../services/uploadService";
 
 // Declare a variable to store the resolver function
 let resolver: (() => void) | null;
@@ -47,7 +43,7 @@ export default function TaskDashboardScreen() {
   const { isConnected } = Network.useNetworkState();
   const appState = useRef(AppState.currentState);
 
-  console.log({ tasks })
+  console.log({ tasks });
 
   //initialize app
   const initializeApp = async () => {
@@ -216,7 +212,7 @@ export default function TaskDashboardScreen() {
     }
 
     setIsProcessing(false);
-    Alert.alert("Done", "Image upload completed");
+    Alert.alert("Done", "Image backup completed");
   };
 
   if (isLoading) {
@@ -231,11 +227,8 @@ export default function TaskDashboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-
       <View style={styles.container}>
-        {isUploading ? (
-          <LoadingModel visible={isUploading} />
-        ) : null}
+        {isUploading ? <LoadingModel visible={isUploading} /> : null}
         {/* Status */}
         <View style={styles.statusRow}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -251,7 +244,6 @@ export default function TaskDashboardScreen() {
                   {failedTasks} photos failed, {pendingTasks} pending
                 </Text>
               </>
-
             ) : pendingTasks === 0 ? (
               <>
                 <Icon name="check-circle-outline" size={25} color={"#00aa44"} />
