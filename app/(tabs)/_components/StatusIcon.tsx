@@ -25,6 +25,14 @@ export const StatusIcon = ({ status }: Props) => {
         />
       );
 
+    case "failed":
+      return (
+        <Ionicons
+          name="alert-circle-outline"
+          size={22}
+          color="#ef4444" // red
+        />
+      );
     case "pending":
     default:
       return (

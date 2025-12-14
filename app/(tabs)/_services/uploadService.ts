@@ -1,6 +1,6 @@
 import { Task } from "../_components/types";
 
-const WEBHOOK_URL = "https://webhook.site/1e90b59f-32b4-4860-ad64-fd59c7159701";
+const WEBHOOK_URL = "https://webhook.site/8c411855-103d-4ffd-9c76-373192e644c9";
 
 export const uploadImageToServer = async (task: Task): Promise<boolean> => {
   if (!task.uri) return false;
@@ -21,6 +21,7 @@ export const uploadImageToServer = async (task: Task): Promise<boolean> => {
       },
     });
 
+    console.log("upload Successful", { response })
     return response.ok;
   } catch (error) {
     console.error("Upload error:", error);

@@ -28,6 +28,7 @@ import {
   saveTasks,
 } from "./_services/storageService";
 import { uploadImageToServer } from "./_services/uploadService";
+import LoadingModel from "@/components/loading-model";
 
 // Declare a variable to store the resolver function
 let resolver: (() => void) | null;
@@ -42,8 +43,11 @@ export default function TaskDashboardScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const networkState = Network.useNetworkState();
+  const [isUploading, setIsUploading] = useState(false);
+  const { isConnected } = Network.useNetworkState();
   const appState = useRef(AppState.currentState);
+
+  console.log({ tasks })
 
   //initialize app
   const initializeApp = async () => {
@@ -95,10 +99,10 @@ export default function TaskDashboardScreen() {
     };
   }, []);
 
-  // Watch network state and trigger background task if online
+  // Watch network state and trigger backup sync task if online
   useEffect(() => {
     // If device becomes online and the app is in foreground, process immediately.
-    if (networkState.isConnected) {
+    if (isConnected) {
       if (appState.current === "active") {
         processTasks();
       } else {
@@ -106,7 +110,7 @@ export default function TaskDashboardScreen() {
         triggerBackgroundTask();
       }
     }
-  }, [networkState.isConnected]);
+  }, [isConnected]);
 
   const handleSaveTasks = async (newTasks: Task[]) => {
     await saveTasks(newTasks);
@@ -116,16 +120,18 @@ export default function TaskDashboardScreen() {
   /* Derived Stats */
   const totalTasks = tasks.length;
   const pendingTasks = tasks.filter((t) => t.status === "pending").length;
+  const failedTasks = tasks.filter((t) => t.status === "failed").length;
   const completedTasks = tasks.filter((t) => t.status === "completed").length;
 
   /* Add Image task */
   const addImageTask = async () => {
+    setIsUploading(true);
     const newImageTasks = await pickImages();
-
     if (newImageTasks.length === 0) return;
 
     const updatedTasks = [...tasks, ...newImageTasks];
     await handleSaveTasks(updatedTasks);
+    setIsUploading(false);
 
     // If online and app is active, process immediately; otherwise trigger background processing
     try {
@@ -189,16 +195,15 @@ export default function TaskDashboardScreen() {
     }
 
     setIsProcessing(true);
-
     let updatedTasks = storedTasks.map((t) =>
       t.status !== "completed" ? { ...t, status: "processing" as const } : t
     );
+    //update the state and storage
     await handleSaveTasks(updatedTasks);
     setTasks(updatedTasks);
 
     for (const task of pendingTasksList) {
       const success = await uploadImageToServer(task);
-
       updatedTasks = updatedTasks.map((t) =>
         t.id === task.id
           ? success
@@ -206,7 +211,6 @@ export default function TaskDashboardScreen() {
             : { ...t, status: "failed" as const, retries: t.retries + 1 }
           : t
       );
-
       await handleSaveTasks(updatedTasks);
       setTasks(updatedTasks);
     }
@@ -227,7 +231,11 @@ export default function TaskDashboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
+
       <View style={styles.container}>
+        {isUploading ? (
+          <LoadingModel visible={isUploading} />
+        ) : null}
         {/* Status */}
         <View style={styles.statusRow}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -236,6 +244,14 @@ export default function TaskDashboardScreen() {
                 <ActivityIndicator size="small" color="#2563eb" />
                 <Text style={{ color: "#2563eb" }}>Backing up photos...</Text>
               </>
+            ) : failedTasks != 0 ? (
+              <>
+                <Icon name="alert-circle-outline" size={25} color={"#ef4444"} />
+                <Text style={{ color: "#ef4444" }}>
+                  {failedTasks} photos failed, {pendingTasks} pending
+                </Text>
+              </>
+
             ) : pendingTasks === 0 ? (
               <>
                 <Icon name="check-circle-outline" size={25} color={"#00aa44"} />
@@ -253,7 +269,7 @@ export default function TaskDashboardScreen() {
             )}
           </View>
 
-          {networkState.isConnected ? (
+          {isConnected ? (
             <Icon name="wifi-strength-4" size={25} color={"#00aa44"} />
           ) : (
             <Icon

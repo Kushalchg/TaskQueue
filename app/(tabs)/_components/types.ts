@@ -1,7 +1,9 @@
+export type TaskStatus = "pending" | "processing" | "completed" | "failed";
+
 export interface Task {
   id: string;
   name: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: TaskStatus;
   retries: number;
   uri: string;
 }
